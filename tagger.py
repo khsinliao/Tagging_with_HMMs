@@ -152,13 +152,15 @@ I would use Viterbi algorithm to predict the TAGs, please refer to the pseudo co
 def test(pos_data , sent_inds , prior , transition , emission):
     results = []
 
+    
+    """
+    Since the index data has not recorded the end position of a sentence, I would append the last index to the sent_inds.
+    Basically, I would use the Viterbi algorithm to predict all the sentences.
+    """
+    # Make index data easier to use
+    sent_inds.append(len(pos_data))
+
     #Viterbi Algorithm
-    """
-    Since the index data has not recorded the end position of a sentence, I would separate the prediction process to two part.
-    In the first part, I would follow the Viterbi algorithm to predict all the sentences except the last one.
-    Therefore , I would specially predict the last sentence in the second part.
-    """
-    #First part
     for i in range(1 , len(sent_inds)):
         pos = 0
         prob_trellis = np.empty((N_tags , sent_inds[i] - sent_inds[i-1]) , dtype = float)
@@ -190,7 +192,7 @@ def test(pos_data , sent_inds , prior , transition , emission):
                     prob_trellis[s][pos] = float(prob_trellis[max_x][pos-1]) + float(transition[max_x][s]) + float(emission[(UNIVERSAL_TAGS[s] , word)])
                     path_trellis[s][pos] = path_trellis[max_x][pos-1] + [UNIVERSAL_TAGS[s]]
             pos += 1
-        # Choose the highest probability of state in the last word to be the best path.
+        # Choose the highest probability of state in the last word to be the best prediction.
         max_val = float("-inf")
         for i in range(N_tags):
             if prob_trellis[i][-1] > max_val:
@@ -199,42 +201,6 @@ def test(pos_data , sent_inds , prior , transition , emission):
         for pred in best_pred:
             results.append(pred)
 
-    #Second part 
-    pos = 0     
-    prob_trellis = np.empty((N_tags , len(pos_data) - sent_inds[-1]) , dtype = float)
-    path_trellis = np.empty((N_tags , len(pos_data) - sent_inds[-1]) , dtype = list)
-    for k in range(sent_inds[-1] , len(pos_data)):
-        #initial
-        word = pos_data[k]
-        #print(word)
-        if pos == 0:
-            for s in range(N_tags):
-                if (UNIVERSAL_TAGS[s],word) not in emission:
-                        emission[(UNIVERSAL_TAGS[s],word)] = -9.68
-                prob_trellis[s][0] = float(prior[s]) + float(emission[(UNIVERSAL_TAGS[s] , word)])
-                path_trellis[s][0] = [UNIVERSAL_TAGS[s]]
-        #X2 - Xt
-        else:
-            for s in range(N_tags):
-                if (UNIVERSAL_TAGS[s],word) not in emission:
-                        emission[(UNIVERSAL_TAGS[s],word)] = -9.68
-                MAX = float("-inf")
-                max_x = 0
-                for x in range(N_tags):
-                    if float(prob_trellis[x][pos-1]) + float(transition[x][s]) + float(emission[(UNIVERSAL_TAGS[s],word)]) > MAX :
-                        MAX = float(prob_trellis[x][pos-1]) + float(transition[x][s]) + float(emission[(UNIVERSAL_TAGS[s],word)])
-                        max_x = x
-                prob_trellis[s][pos] = float(prob_trellis[max_x][pos-1]) + float(transition[max_x][s]) + float(emission[(UNIVERSAL_TAGS[s] , word)])
-                path_trellis[s][pos] = path_trellis[max_x][pos-1] + [UNIVERSAL_TAGS[s]]
-        pos += 1
-
-    max_val = float("-inf")
-    for i in range(N_tags):
-        if prob_trellis[i][-1] > max_val:
-            max_val = prob_trellis[i][-1]
-            best_pred = path_trellis[i][-1]
-    for pred in best_pred:
-        results.append(pred)
     print("Finish Prediction!")
     return results
 
@@ -251,7 +217,6 @@ def tag(train_file_name, test_file_name):
     sent_inds = read_data_ind(test_file_name+'.ind')
 
     results = test(pos_data , sent_inds , prior , transition , emission)
-    #print(results)
     
     write_results(test_file_name+'.pred', results)
     end_time = time.time()
